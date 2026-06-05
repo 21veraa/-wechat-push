@@ -1,1 +1,34 @@
+name: 公众号日报定时推送
+
+on:
+  schedule:
+    - cron: '0 22 * * *'
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      push_type:
+        description: '推送类型'
+        required: true
+        default: 'morning'
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 判断推送类型
+        id: type
+        run: |
+          HOUR=$(TZ='Asia/Shanghai' date +%H)
+          if [ "$HOUR" = "06" ]; then echo "type=morning" >> $GITHUB_OUTPUT
+          elif [ "$HOUR" = "17" ]; then echo "type=evening" >> $GITHUB_OUTPUT
+          else echo "type=${{ github.event.inputs.push_type }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 调用 Coze API
+        run: |
+          curl -s -X POST "https://qwy24ms4cf.coze.site/run" \
+            -H "Authorization: Bearer ${{ secrets.COZE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"push_type":"${{ steps.type.outputs.type }}"}' \
+            -w "\nHTTP_CODE: %{http_code}"
 
